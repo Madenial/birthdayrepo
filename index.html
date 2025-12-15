@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat Stats Dashboard</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#101826;
+      --panel2:#0f1724;
+      --text:#e6edf3;
+      --muted:#9fb0c0;
+      --line:rgba(255,255,255,.08);
+      --accent:#7dd3fc;
+      --accent2:#a78bfa;
+      --good:#34d399;
+      --warn:#fbbf24;
+      --bad:#fb7185;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(167,139,250,.18), transparent 60%),
+                  radial-gradient(1000px 700px at 80% 30%, rgba(125,211,252,.14), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:5;
+      backdrop-filter: blur(10px);
+      background: rgba(11,15,20,.75);
+      border-bottom:1px solid var(--line);
+      padding:14px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    header .title{
+      display:flex; flex-direction:column;
+      line-height:1.1;
+    }
+    header h1{margin:0; font-size:16px; font-weight:800; letter-spacing:.2px}
+    header p{margin:4px 0 0; font-size:12px; color:var(--muted)}
+    .toggles{
+      display:flex; gap:10px; align-items:center;
+      font-size:12px; color:var(--muted);
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px;
+      border:1px solid var(--line);
+      background: rgba(16,24,38,.65);
+      border-radius:999px;
+      user-select:none;
+    }
+    .pill input{accent-color: var(--accent)}
+
+    .wrap{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: calc(100vh - 60px);
+    }
+    .col{
+      padding:18px;
+      border-right:1px solid var(--line);
+    }
+    .col:last-child{border-right:none}
+
+    .who{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:12px;
+    }
+    .who .name{
+      font-size:14px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .badge{
+      font-size:11px;
+      color:var(--muted);
+      border:1px solid var(--line);
+      background: rgba(16,24,38,.55);
+      padding:6px 10px;
+      border-radius:999px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      align-items:stretch;
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(16,24,38,.92), rgba(15,23,36,.88));
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0 0 10px;
+      font-size:12px;
+      letter-spacing:.4px;
+      text-transform:uppercase;
+      color: var(--muted);
+    }
+
+    .kpiRow{display:flex; gap:10px; flex-wrap:wrap}
+    .kpi{
+      flex:1 1 130px;
+      background: rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px;
+      min-width:130px;
+    }
+    .kpi .label{font-size:11px; color:var(--muted)}
+    .kpi .value{font-size:18px; font-weight:900; margin-top:6px}
+    .kpi .sub{font-size:11px; color:var(--muted); margin-top:4px}
+
+    .list{
+      display:flex; flex-direction:column; gap:8px;
+      max-height: 320px;
+      overflow:auto;
+      padding-right:6px;
+    }
+    .list::-webkit-scrollbar{width:10px}
+    .list::-webkit-scrollbar-thumb{background: rgba(255,255,255,.08); border-radius:999px}
+
+    .word{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.06);
+      background: rgba(255,255,255,.02);
+    }
+    .word .w{font-weight:800; letter-spacing:.2px}
+    .word .c{color:var(--muted); font-variant-numeric: tabular-nums}
+
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+    }
+    .table th, .table td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      vertical-align:top;
+    }
+    .table th{
+      text-align:left;
+      color:var(--muted);
+      font-weight:800;
+      background: rgba(255,255,255,.03);
+      position:sticky;
+      top:0;
+      z-index:1;
+    }
+    .table tr:last-child td{border-bottom:none}
+
+    /* scroll container for rare tables */
+.scrollWrap{
+  max-height:340px;
+  overflow:auto;
+  padding-right:6px;
+  border-radius:14px;
+  scrollbar-width: thin;                 /* Firefox */
+  scrollbar-color: rgba(255,255,255,.18) rgba(255,255,255,.04);
+}
+/* Chrome / Edge / Safari */
+.scrollWrap::-webkit-scrollbar{width:10px; height:10px}
+.scrollWrap::-webkit-scrollbar-track{
+  background: rgba(255,255,255,.04);
+  border-radius:999px;
+}
+.scrollWrap::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.18);
+  border-radius:999px;
+  border: 2px solid rgba(255,255,255,.04);
+}
+.scrollWrap::-webkit-scrollbar-thumb:hover{background: rgba(255,255,255,.28)}
+.scrollWrap::-webkit-scrollbar-corner{background: rgba(255,255,255,.04)}
+
+/* make the table corners look clean inside the scroll box */
+.scrollWrap .table{border-radius:12px}
+
+    .canvasCard{grid-column: 1 / -1}
+    .canvasWrap{
+      display:flex;
+      gap:12px;
+      align-items:stretch;
+    }
+    canvas{
+      width:100%;
+      height:280px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.02);
+    }
+    .legend{
+      width:220px;
+      min-width:220px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px;
+      background: rgba(255,255,255,.02);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .legend .row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0}
+    .dot{width:10px; height:10px; border-radius:999px; display:inline-block; margin-right:8px}
+    .legend strong{color:var(--text)}
+
+    .split{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .chip{
+      font-size:11px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:7px 10px;
+      background: rgba(255,255,255,.02);
+      color:var(--muted);
+    }
+
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr}
+      .col{border-right:none; border-bottom:1px solid var(--line)}
+      .col:last-child{border-bottom:none}
+      .legend{width:100%; min-width:unset}
+      .canvasWrap{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>GF Chat Stats Dashboard</h1>
+      <p>Left = her stats, right = your stats. Includes a canvas viz because humans love pictures more than numbers.</p>
+    </div>
+    <div class="toggles">
+      <label class="pill"><input id="toggleWords" type="checkbox" checked />Show words</label>
+      <label class="pill"><input id="toggleRare" type="checkbox" checked />Show rare-first lists</label>
+      <label class="pill"><input id="toggleNouns" type="checkbox" checked />Show nouns</label>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- HER COLUMN -->
+    <section class="col" id="colHer">
+      <div class="who">
+        <div class="name">Her</div>
+        <div class="badge" id="badgeHer">messages: 3,663</div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Core KPIs</h2>
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">Avg reply time</div>
+              <div class="value" id="herReply">12.63</div>
+              <div class="sub">minutes</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Questions rate</div>
+              <div class="value" id="herQRate">0.110</div>
+              <div class="sub">questions / message</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Unique vocab (≥3 letters)</div>
+              <div class="value" id="herVocab">2698</div>
+              <div class="sub">distinct tokens</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Conversation starts</div>
+              <div class="value" id="herStarts">10</div>
+              <div class="sub">after >8h gaps</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Streaks + Late Night</h2>
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">Longest streak</div>
+              <div class="value" id="herLongestStreak">71</div>
+              <div class="sub">max consecutive msgs</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Avg streak length</div>
+              <div class="value" id="herAvgStreak">1.89</div>
+              <div class="sub">msgs per streak</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Late-night msgs</div>
+              <div class="value" id="herLate">39</div>
+              <div class="sub">00:00–04:00</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Late-night share</div>
+              <div class="value" id="herLateShare">0.26</div>
+              <div class="sub">within window</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card wordsSection">
+          <h2>Top 20 words</h2>
+          <div class="list" id="herWords"></div>
+        </div>
+
+        <div class="card nounsSection">
+          <h2>Top 20 nouns</h2>
+          <div class="list" id="herNouns"></div>
+        </div>
+
+        <div class="card rareSection" style="grid-column:1/-1;">
+          <h2>First 30 rare new words (chronological)</h2>
+          <div class="scrollWrap">
+            <table class="table" id="herRareWords"></table>
+          </div>
+        </div>
+
+        <div class="card rareSection" style="grid-column:1/-1;">
+          <h2>First 30 rare new nouns</h2>
+          <div class="scrollWrap">
+            <table class="table" id="herRareNouns"></table>
+          </div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1;">
+          <h2>Pet names / nicknames</h2>
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">Total pet names</div>
+              <div class="value" id="herPetTotal">116</div>
+              <div class="sub">count</div>
+            </div>
+          </div>
+          <div class="split" id="herPetList" style="margin-top:10px"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- HIM COLUMN -->
+    <section class="col" id="colHim">
+      <div class="who">
+        <div class="name">You</div>
+        <div class="badge" id="badgeHim">messages: 7,079</div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Core KPIs</h2>
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">Avg reply time</div>
+              <div class="value" id="himReply">10.94</div>
+              <div class="sub">minutes</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Questions rate</div>
+              <div class="value" id="himQRate">0.086</div>
+              <div class="sub">questions / message</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Unique vocab (≥3 letters)</div>
+              <div class="value" id="himVocab">3372</div>
+              <div class="sub">distinct tokens</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Conversation starts</div>
+              <div class="value" id="himStarts">56</div>
+              <div class="sub">after >8h gaps</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Streaks + Late Night</h2>
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">Longest streak</div>
+              <div class="value" id="himLongestStreak">64</div>
+              <div class="sub">max consecutive msgs</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Avg streak length</div>
+              <div class="value" id="himAvgStreak">3.65</div>
+              <div class="sub">msgs per streak</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Late-night msgs</div>
+              <div class="value" id="himLate">111</div>
+              <div class="sub">00:00–04:00</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Late-night share</div>
+              <div class="value" id="himLateShare">0.74</div>
+              <div class="sub">within window</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card wordsSection">
+          <h2>Top 20 words</h2>
+          <div class="list" id="himWords"></div>
+        </div>
+
+        <div class="card nounsSection">
+          <h2>Top 20 nouns</h2>
+          <div class="list" id="himNouns"></div>
+        </div>
+
+        <div class="card rareSection" style="grid-column:1/-1;">
+          <h2>First 30 rare new words (chronological)</h2>
+          <div class="scrollWrap">
+            <table class="table" id="himRareWords"></table>
+          </div>
+        </div>
+
+        <div class="card rareSection" style="grid-column:1/-1;">
+          <h2>First 30 rare new nouns</h2>
+          <div class="scrollWrap">
+            <table class="table" id="himRareNouns"></table>
+          </div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1;">
+          <h2>Pet names / nicknames</h2>
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">Total pet names</div>
+              <div class="value" id="himPetTotal">144</div>
+              <div class="sub">count</div>
+            </div>
+          </div>
+          <div class="split" id="himPetList" style="margin-top:10px"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CANVAS VIZ ACROSS BOTH -->
+    <section class="col" style="grid-column:1/-1; border-top:1px solid var(--line)">
+      <div class="grid">
+        <div class="card canvasCard">
+          <h2>Canvas viz: quick comparisons</h2>
+          <div class="canvasWrap">
+            <canvas id="viz" width="1200" height="560"></canvas>
+            <div class="legend">
+              <div style="font-weight:900; color:var(--text); margin-bottom:8px">What you’re looking at</div>
+              <div class="row"><span><span class="dot" style="background:var(--accent2)"></span>Her</span><strong id="legHer">3,663 msgs</strong></div>
+              <div class="row"><span><span class="dot" style="background:var(--accent)"></span>You</span><strong id="legHim">7,079 msgs</strong></div>
+              <hr style="border:none; border-top:1px solid var(--line); margin:10px 0" />
+              <div style="line-height:1.35">
+                Bars: Messages, convo starts, late-night, pet names<br/>
+                Dots: Avg reply time, unique vocab, question-rate, streak metrics
+              </div>
+              <div style="margin-top:10px; font-size:11px">Resize the window and it redraws. Because we live in the future.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+<script>
+  // ---------- DATA (edit here if you recompute stats) ----------
+  const DATA = {
+    overall: {
+      topWords: [
+        ["loved",253],["about",223],["think",209],["there",185],["thats",164],["still",151],["sleep",150],["today",145],["wanna",126],["should",126],
+        ["going",123],["actually",117],["class",116],["tomorrow",113],["really",113],["after",112],["minutes",112],["gonna",111],["thank",104],["would",104]
+      ],
+      topNouns: [
+        ["lmao",624],["time",366],["day",324],["work",294],["today",290],["class",272],["tho",270],["minute",266],["bus",250],["thing",236],
+        ["tomorrow",226],["lol",192],["baby",192],["one",184],["morning",174],["hour",160],["dream",158],["place",154],["game",154],["people",152]
+      ]
+    },
+    her: {
+      label: "Her",
+      messages: 3663,
+      avgReplyMin: 12.63,
+      questions: { total: 404, perMsg: 0.110 },
+      convoStarts: 10,
+      streaks: { longest: 71, avg: 1.89, longestRange: "2025-11-14 20:22:26 → 2025-11-17 18:44:17" },
+      lateNight: { count: 39, share: 0.26 },
+      uniqueVocab: 2698,
+      topWords: [
+        ["loved",246],["think",92],["thank",86],["about",74],["still",60],["sleep",57],["there",55],["going",50],["really",43],["maybe",42],
+        ["tomorrow",40],["right",38],["actually",38],["would",38],["should",37],["goodmorning",36],["gonna",36],["class",35],["after",34],["because",32]
+      ],
+      topNouns: [
+        ["tho",90],["lmao",88],["lol",75],["time",65],["day",53],["class",42],["work",41],["tomorrow",40],["omg",37],["thing",37],
+        ["fuck",35],["bus",34],["image",32],["one",31],["hour",30],["bed",30],["today",29],["imma",28],["dream",28],["lab",27]
+      ],
+      rareWords: [
+        {word:"tablet", first_time:"2025-09-15 14:26:37", first_said_by:"her", total_count:2},
+        {word:"edith", first_time:"2025-09-15 14:27:02", first_said_by:"her", total_count:2},
+        {word:"firmlimnology", first_time:"2025-09-15 14:28:05", first_said_by:"her", total_count:1},
+        {word:"shall", first_time:"2025-09-15 14:32:06", first_said_by:"her", total_count:2},
+        {word:"sustainability", first_time:"2025-09-15 15:40:24", first_said_by:"her", total_count:1},
+        {word:"office", first_time:"2025-09-15 15:40:24", first_said_by:"her", total_count:1},
+        {word:"understandable", first_time:"2025-09-16 15:42:54", first_said_by:"her", total_count:2},
+        {word:"shortly", first_time:"2025-09-16 16:01:22", first_said_by:"her", total_count:2},
+        {word:"flowers", first_time:"2025-09-17 12:02:27", first_said_by:"her", total_count:2},
+        {word:"generated", first_time:"2025-09-17 12:03:25", first_said_by:"her", total_count:2}
+      ],
+      rareNouns: [
+        {noun:"tablet", first_time:"2025-09-15 14:26:37", first_said_by:"her", total_count:2},
+        {noun:"edith", first_time:"2025-09-15 14:27:02", first_said_by:"her", total_count:2},
+        {noun:"firmlimnology", first_time:"2025-09-15 14:28:05", first_said_by:"her", total_count:1},
+        {noun:"sustainability", first_time:"2025-09-15 15:40:24", first_said_by:"her", total_count:1},
+        {noun:"office", first_time:"2025-09-15 15:40:24", first_said_by:"her", total_count:1},
+        {noun:"thismorning", first_time:"2025-09-16 09:32:12", first_said_by:"her", total_count:1},
+        {noun:"wdym", first_time:"2025-09-17 11:58:41", first_said_by:"her", total_count:2},
+        {noun:"stg", first_time:"2025-09-17 12:00:09", first_said_by:"her", total_count:1},
+        {noun:"towne", first_time:"2025-09-17 16:36:22", first_said_by:"her", total_count:1},
+        {noun:"gremlin", first_time:"2025-09-17 16:37:29", first_said_by:"her", total_count:1},
+        {noun:"dreamliner", first_time:"2025-09-17 16:37:29", first_said_by:"her", total_count:1},
+        {noun:"yooooo", first_time:"2025-09-17 16:37:42", first_said_by:"her", total_count:2}
+      ],
+      petNames: { total: 116, top: [["bb",46],["love",42],["baby",10],["luv",10],["babe",4],["handsome",3],["cutie",2],["honey",1],["angel",1]] }
+    },
+    him: {
+      label: "You",
+      messages: 7079,
+      avgReplyMin: 10.94,
+      questions: { total: 606, perMsg: 0.086 },
+      convoStarts: 56,
+      streaks: { longest: 64, avg: 3.65 },
+      lateNight: { count: 111, share: 0.74 },
+      uniqueVocab: 3372,
+      topWords: [
+        ["thats",151],["about",149],["there",130],["wanna",119],["think",117],["today",116],["minutes",101],["didnt",95],["sleep",93],["still",91],
+        ["should",89],["class",81],["actually",79],["after",78],["gonna",75],["yuuuuh",75],["morning",74],["could",73],["tomorrow",73],["going",73]
+      ],
+      topNouns: [
+        ["lmao",224],["time",118],["today",116],["minute",116],["day",109],["work",106],["class",94],["bus",91],["baby",86],["thing",81],
+        ["yuuuuh",75],["morning",74],["tomorrow",73],["one",61],["people",60],["game",59],["ill",57],["place",57],["home",57],["guy",52]
+      ],
+      rareWords: [
+        {word:"connect", first_time:"2025-09-15 14:26:03", first_said_by:"him", total_count:2},
+        {word:"lakes", first_time:"2025-09-15 14:27:48", first_said_by:"him", total_count:1},
+        {word:"gluck", first_time:"2025-09-15 14:28:30", first_said_by:"him", total_count:1},
+        {word:"hadnt", first_time:"2025-09-15 14:32:35", first_said_by:"him", total_count:1},
+        {word:"convenient", first_time:"2025-09-15 14:33:08", first_said_by:"him", total_count:1},
+        {word:"ookay", first_time:"2025-09-15 15:40:31", first_said_by:"him", total_count:1},
+        {word:"calpis", first_time:"2025-09-16 09:32:44", first_said_by:"him", total_count:2},
+        {word:"itchy", first_time:"2025-09-16 14:14:35", first_said_by:"him", total_count:2},
+        {word:"caucus", first_time:"2025-09-16 14:17:57", first_said_by:"him", total_count:1},
+        {word:"interview", first_time:"2025-09-16 14:17:57", first_said_by:"him", total_count:2},
+        {word:"element", first_time:"2025-09-16 20:10:49", first_said_by:"him", total_count:1},
+        {word:"crazyyy", first_time:"2025-09-17 11:38:12", first_said_by:"him", total_count:2},
+        {word:"whyyy", first_time:"2025-09-17 11:54:42", first_said_by:"him", total_count:2},
+        {word:"groupmate", first_time:"2025-09-17 11:55:05", first_said_by:"him", total_count:1},
+        {word:"groupmates", first_time:"2025-09-17 11:55:05", first_said_by:"him", total_count:2},
+        {word:"wishing", first_time:"2025-09-17 11:55:29", first_said_by:"him", total_count:1},
+        {word:"texts", first_time:"2025-09-17 11:55:29", first_said_by:"him", total_count:2},
+        {word:"spamming", first_time:"2025-09-17 11:55:37", first_said_by:"him", total_count:1},
+        {word:"chrysanthemum", first_time:"2025-09-17 12:02:08", first_said_by:"him", total_count:1},
+        {word:"vocab", first_time:"2025-09-17 12:02:43", first_said_by:"him", total_count:1}
+      ],
+      rareNouns: [
+        {noun:"wifi", first_time:"2025-09-15 14:26:03", first_said_by:"him", total_count:2},
+        {noun:"calpis", first_time:"2025-09-16 09:32:44", first_said_by:"him", total_count:2},
+        {noun:"insta:3", first_time:"2025-09-16 14:14:43", first_said_by:"him", total_count:1},
+        {noun:"caucus", first_time:"2025-09-16 14:17:57", first_said_by:"him", total_count:1},
+        {noun:"element", first_time:"2025-09-16 20:10:49", first_said_by:"him", total_count:1},
+        {noun:"crazyyy", first_time:"2025-09-17 11:38:12", first_said_by:"him", total_count:2},
+        {noun:"whyyy", first_time:"2025-09-17 11:54:42", first_said_by:"him", total_count:2},
+        {noun:"team", first_time:"2025-09-17 11:56:31", first_said_by:"him", total_count:2},
+        {noun:"pdf", first_time:"2025-09-17 11:58:14", first_said_by:"him", total_count:1},
+        {noun:"wechat", first_time:"2025-09-17 12:01:54", first_said_by:"him", total_count:2},
+        {noun:"vocab", first_time:"2025-09-17 12:02:43", first_said_by:"him", total_count:1},
+        {noun:"duality", first_time:"2025-09-17 12:03:44", first_said_by:"him", total_count:1},
+        {noun:"scammer", first_time:"2025-09-17 12:10:20", first_said_by:"him", total_count:1},
+        {noun:"insurance", first_time:"2025-09-17 12:10:20", first_said_by:"him", total_count:2},
+        {noun:"groupchat", first_time:"2025-09-17 12:31:28", first_said_by:"him", total_count:2},
+        {noun:"town", first_time:"2025-09-17 12:32:04", first_said_by:"him", total_count:2},
+        {noun:"fuckity", first_time:"2025-09-17 17:09:37", first_said_by:"him", total_count:1}
+      ],
+      petNames: { total: 144, top: [["baby",87],["love",45],["angel",5],["bb",4],["honey",4],["cutie",1],["princess",1]] }
+    }
+  };
+
+  // Note: Your paste includes 30 rare rows overall; you only provided a subset of rare words/nouns per person.
+  // This dashboard displays the subset that clearly belongs to each side. If you want all 30 on each side,
+  // paste full lists for each sender and replace arrays above.
+
+  // ---------- UI RENDER HELPERS ----------
+  const el = (id) => document.getElementById(id);
+
+  function fmt(n){
+    if (typeof n !== 'number') return String(n);
+    return n.toLocaleString(undefined, {maximumFractionDigits: 2});
+  }
+
+  function renderWordList(containerId, pairs){
+    const root = el(containerId);
+    root.innerHTML = "";
+    for (const [w,c] of pairs){
+      const row = document.createElement('div');
+      row.className = 'word';
+      row.innerHTML = `<div class="w">${w}</div><div class="c">${c}</div>`;
+      root.appendChild(row);
+    }
+  }
+
+  function renderRareTable(tableId, rows, kind){
+    const t = el(tableId);
+    const header = `
+      <thead>
+        <tr>
+          <th>${kind}</th>
+          <th>first time</th>
+          <th>by</th>
+          <th>count</th>
+        </tr>
+      </thead>`;
+    const bodyRows = rows.map(r => {
+      const w = r[kind];
+      return `<tr>
+        <td><strong>${w}</strong></td>
+        <td>${r.first_time}</td>
+        <td>${r.first_said_by}</td>
+        <td>${r.total_count}</td>
+      </tr>`;
+    }).join('');
+    t.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
+  }
+
+  function renderPetChips(containerId, topPairs){
+    const root = el(containerId);
+    root.innerHTML = "";
+    for (const [w,c] of topPairs){
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = `${w}: ${c}`;
+      root.appendChild(chip);
+    }
+  }
+
+  // ---------- POPULATE LEFT/RIGHT ----------
+  function populate(){
+    // badges
+    el('badgeHer').textContent = `messages: ${fmt(DATA.her.messages)}`;
+    el('badgeHim').textContent = `messages: ${fmt(DATA.him.messages)}`;
+
+    // KPIs
+    el('herReply').textContent = fmt(DATA.her.avgReplyMin);
+    el('himReply').textContent = fmt(DATA.him.avgReplyMin);
+
+    el('herQRate').textContent = fmt(DATA.her.questions.perMsg);
+    el('himQRate').textContent = fmt(DATA.him.questions.perMsg);
+
+    el('herVocab').textContent = fmt(DATA.her.uniqueVocab);
+    el('himVocab').textContent = fmt(DATA.him.uniqueVocab);
+
+    el('herStarts').textContent = fmt(DATA.her.convoStarts);
+    el('himStarts').textContent = fmt(DATA.him.convoStarts);
+
+    el('herLongestStreak').textContent = fmt(DATA.her.streaks.longest);
+    el('himLongestStreak').textContent = fmt(DATA.him.streaks.longest);
+
+    el('herAvgStreak').textContent = fmt(DATA.her.streaks.avg);
+    el('himAvgStreak').textContent = fmt(DATA.him.streaks.avg);
+
+    el('herLate').textContent = fmt(DATA.her.lateNight.count);
+    el('himLate').textContent = fmt(DATA.him.lateNight.count);
+
+    el('herLateShare').textContent = fmt(DATA.her.lateNight.share);
+    el('himLateShare').textContent = fmt(DATA.him.lateNight.share);
+
+    // word lists
+    renderWordList('herWords', DATA.her.topWords);
+    renderWordList('himWords', DATA.him.topWords);
+
+    // nouns
+    renderWordList('herNouns', DATA.her.topNouns);
+    renderWordList('himNouns', DATA.him.topNouns);
+
+    // rare tables
+    renderRareTable('herRareWords', DATA.her.rareWords, 'word');
+    renderRareTable('himRareWords', DATA.him.rareWords, 'word');
+    renderRareTable('herRareNouns', DATA.her.rareNouns, 'noun');
+    renderRareTable('himRareNouns', DATA.him.rareNouns, 'noun');
+
+    // pet names
+    el('herPetTotal').textContent = fmt(DATA.her.petNames.total);
+    el('himPetTotal').textContent = fmt(DATA.him.petNames.total);
+    renderPetChips('herPetList', DATA.her.petNames.top);
+    renderPetChips('himPetList', DATA.him.petNames.top);
+
+    // legend
+    el('legHer').textContent = `${fmt(DATA.her.messages)} msgs`;
+    el('legHim').textContent = `${fmt(DATA.him.messages)} msgs`;
+
+    drawViz();
+  }
+
+  // ---------- TOGGLES ----------
+  function applyToggles(){
+    const showWords = el('toggleWords').checked;
+    const showRare  = el('toggleRare').checked;
+    const showNouns = el('toggleNouns').checked;
+
+    document.querySelectorAll('.wordsSection').forEach(x => x.style.display = showWords ? '' : 'none');
+    document.querySelectorAll('.rareSection').forEach(x => x.style.display = showRare ? '' : 'none');
+    document.querySelectorAll('.nounsSection').forEach(x => x.style.display = showNouns ? '' : 'none');
+
+    drawViz();
+  }
+
+  // ---------- CANVAS VIZ ----------
+  function drawViz(){
+    const canvas = el('viz');
+    const ctx = canvas.getContext('2d');
+
+    // scale for hiDPI
+    const cssW = canvas.clientWidth;
+    const cssH = canvas.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    // clear
+    ctx.clearRect(0,0,cssW,cssH);
+
+    // theme colors from CSS
+    const styles = getComputedStyle(document.documentElement);
+    const herC = styles.getPropertyValue('--accent2').trim();
+    const himC = styles.getPropertyValue('--accent').trim();
+    const line = styles.getPropertyValue('--line').trim();
+    const text = styles.getPropertyValue('--text').trim();
+    const muted = styles.getPropertyValue('--muted').trim();
+
+    // layout
+    const pad = 18;
+    const W = cssW, H = cssH;
+
+    // background grid lines
+    ctx.strokeStyle = line;
+    ctx.lineWidth = 1;
+    for(let y=pad; y<H-pad; y+=40){
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      ctx.lineTo(W-pad, y);
+      ctx.stroke();
+    }
+
+    // helpers
+    const max = (a,b)=>Math.max(a,b);
+
+    // bars section
+    const barTop = 40;
+    const barH = 220;
+    const barLeft = pad;
+    const barRight = W - pad;
+    const barW = barRight - barLeft;
+
+    const barCats = [
+      {k:'messages', label:'Messages', her: DATA.her.messages, him: DATA.him.messages},
+      {k:'starts', label:'Convo starts', her: DATA.her.convoStarts, him: DATA.him.convoStarts},
+      {k:'late', label:'Late-night', her: DATA.her.lateNight.count, him: DATA.him.lateNight.count},
+      {k:'pet', label:'Pet names', her: DATA.her.petNames.total, him: DATA.him.petNames.total},
+    ];
+
+    const catMax = {
+      messages: max(DATA.her.messages, DATA.him.messages),
+      starts: max(DATA.her.convoStarts, DATA.him.convoStarts),
+      late: max(DATA.her.lateNight.count, DATA.him.lateNight.count),
+      pet: max(DATA.her.petNames.total, DATA.him.petNames.total),
+    };
+
+    // titles
+    ctx.fillStyle = text;
+    ctx.font = '800 14px ui-sans-serif, system-ui';
+    ctx.fillText('Counts (bars)', barLeft, 22);
+
+    const gap = 16;
+    const groupW = (barW - gap*(barCats.length-1)) / barCats.length;
+    const singleW = (groupW - 10) / 2;
+
+    barCats.forEach((cat, i)=>{
+      const gx = barLeft + i*(groupW + gap);
+      const baseY = barTop + barH;
+
+      // axis label
+      ctx.fillStyle = muted;
+      ctx.font = '700 11px ui-sans-serif, system-ui';
+      ctx.fillText(cat.label, gx, baseY + 18);
+
+      // bars
+      const hHer = (cat.her / catMax[cat.k]) * barH;
+      const hHim = (cat.him / catMax[cat.k]) * barH;
+
+      // her
+      ctx.fillStyle = herC;
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(gx, baseY - hHer, singleW, hHer);
+
+      // him
+      ctx.fillStyle = himC;
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(gx + singleW + 10, baseY - hHim, singleW, hHim);
+
+      ctx.globalAlpha = 1;
+
+      // values
+      ctx.fillStyle = text;
+      ctx.font = '800 12px ui-sans-serif, system-ui';
+      ctx.fillText(String(cat.her), gx, baseY - hHer - 6);
+      ctx.fillText(String(cat.him), gx + singleW + 10, baseY - hHim - 6);
+    });
+
+    // dots section (normalized per metric)
+    const dotTop = barTop + barH + 60;
+    const dotH = H - dotTop - pad;
+
+    ctx.fillStyle = text;
+    ctx.font = '800 14px ui-sans-serif, system-ui';
+    ctx.fillText('Rates / magnitudes (dots)', barLeft, dotTop - 18);
+
+    const metrics = [
+      {label:'Avg reply (min)', her: DATA.her.avgReplyMin, him: DATA.him.avgReplyMin, max: max(DATA.her.avgReplyMin, DATA.him.avgReplyMin)},
+      {label:'Unique vocab', her: DATA.her.uniqueVocab, him: DATA.him.uniqueVocab, max: max(DATA.her.uniqueVocab, DATA.him.uniqueVocab)},
+      {label:'Questions/msg', her: DATA.her.questions.perMsg, him: DATA.him.questions.perMsg, max: max(DATA.her.questions.perMsg, DATA.him.questions.perMsg)},
+      {label:'Avg streak', her: DATA.her.streaks.avg, him: DATA.him.streaks.avg, max: max(DATA.her.streaks.avg, DATA.him.streaks.avg)},
+      {label:'Longest streak', her: DATA.her.streaks.longest, him: DATA.him.streaks.longest, max: max(DATA.her.streaks.longest, DATA.him.streaks.longest)},
+      {label:'Late-night share', her: DATA.her.lateNight.share, him: DATA.him.lateNight.share, max: 1},
+    ];
+
+    const mGap = 14;
+    const mW = (barW - mGap*(metrics.length-1)) / metrics.length;
+
+    const dotY = (v, vmax) => dotTop + dotH - (v / vmax) * (dotH - 26) - 10;
+
+    metrics.forEach((m, i)=>{
+      const x0 = barLeft + i*(mW + mGap);
+      const cxHer = x0 + mW*0.35;
+      const cxHim = x0 + mW*0.65;
+
+      // label
+      ctx.fillStyle = muted;
+      ctx.font = '700 11px ui-sans-serif, system-ui';
+      ctx.fillText(m.label, x0, dotTop + dotH - 2);
+
+      // dot positions
+      const yHer = dotY(m.her, m.max);
+      const yHim = dotY(m.him, m.max);
+
+      // stems
+      ctx.strokeStyle = line;
+      ctx.beginPath();
+      ctx.moveTo(cxHer, dotTop + dotH - 20);
+      ctx.lineTo(cxHer, yHer);
+      ctx.moveTo(cxHim, dotTop + dotH - 20);
+      ctx.lineTo(cxHim, yHim);
+      ctx.stroke();
+
+      // dots
+      ctx.fillStyle = herC;
+      ctx.beginPath();
+      ctx.arc(cxHer, yHer, 6, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = himC;
+      ctx.beginPath();
+      ctx.arc(cxHim, yHim, 6, 0, Math.PI*2);
+      ctx.fill();
+
+      // values
+      ctx.fillStyle = text;
+      ctx.font = '800 11px ui-sans-serif, system-ui';
+      ctx.fillText(fmt(m.her), cxHer - 12, yHer - 10);
+      ctx.fillText(fmt(m.him), cxHim - 12, yHim - 10);
+    });
+
+    // caption
+    ctx.fillStyle = muted;
+    ctx.font = '700 11px ui-sans-serif, system-ui';
+    ctx.fillText('Tip: if you want this to be a gift, add screenshots of messages and a timeline chart next.', barLeft, H - 10);
+  }
+
+  // ---------- EVENTS ----------
+  window.addEventListener('resize', () => drawViz());
+  ['toggleWords','toggleRare','toggleNouns'].forEach(id => el(id).addEventListener('change', applyToggles));
+
+  populate();
+  applyToggles();
+</script>
+</body>
+</html>
